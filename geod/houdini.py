@@ -1,6 +1,7 @@
+import itertools
 import os
 
-from geod.core import BaseDumper
+from geod.core import BaseDumper, BaseLoader
 
 import hou
 
@@ -19,14 +20,22 @@ class HoudiniDumper(BaseDumper):
         for root in roots:
             for node in self._walk_node(root):
                 type_ = node.type().name()
-                if isinstance(node, hou.ObjNode) and type_ in ('subnet', 'geo'):
+                if isinstance(node, hou.ObjNode) and type_ in ('subnet', 'geo', 'instance'):
 
                     obj = {
                         'generator': 'Houdini %s' % hou.applicationVersionString(),
-                        'name': os.path.relpath(node.path(), '/obj'),
+                        'hou_node': node.path(),
+                        'hou_type': '%s/%s' % (node.type().category().name().lower(), node.type().name()),
+                        'name': node.name(),
+                        'path': os.path.relpath(node.path(), '/obj'),
                     }
                     if type_ == 'geo':
-                        obj['geometry_file'] = obj['name'] + '.obj'
+                        obj['geometry_file'] = obj['path'] + '.obj'
+                    if type_ == 'instance':
+                        instance = node.parm('instancepath').evalAsString()
+                        instance = os.path.abspath(os.path.join(node.path(), instance))
+                        instance = os.path.relpath(instance, os.path.dirname(node.path()))
+                        obj['instance_name'] = instance
 
                     transform = node.worldTransform()
                     try:
@@ -36,21 +45,46 @@ class HoudiniDumper(BaseDumper):
                     else:
                         transform *= p_transform.inverted()
                     obj['transform'] = transform.asTuple()
-                    
+
                     obj['transform_order'] = node.parm('xOrd').evalAsString()
                     obj['transform_rotation_order'] = node.parm('rOrd').evalAsString()
                     obj['transform_pivot'] = node.parmTuple('p').eval()
                     
                     yield obj
 
-    def dump_geo(self, name, geometry_file=None, **kw):
+    def dump_geo(self, path, geometry_file=None, **kw):
         if geometry_file:
-            node = hou.node(name)
+            node = hou.node('/obj/' + path)
             geo = node.displayNode().geometry()
             geo.saveToFile(self.abspath(geometry_file))
 
 
-def main_dump():
+def unique_node_name(base):
+    node = hou.node(base)
+    if not node:
+        return base
+    for i in itertools.count(1):
+        path = '%s_%d' % i
+        node = hou.node(path)
+        if not node:
+            return path
 
+
+class HoudiniLoader(BaseLoader):
+
+    def load_object(self, name, path, geometry_file=None, instance_name=None):
+
+        node_path = '/obj/' + path
+        node_dir = os.path.dirname(node_path)
+
+        if geometry_file:
+            node_path = unique_node_name()
+
+
+def main_dump():
     dumper = HoudiniDumper('/Users/mikeboers/Desktop/test.geod')
     dumper.dump()
+
+def main_load():
+    loader = HoudiniLoader('/Users/mikeboers/Desktop/test.geod')
+    loader.load()
