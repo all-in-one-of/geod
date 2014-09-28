@@ -143,7 +143,10 @@ class HoudiniLoader(BaseLoader):
             raise ValueError('unknown object type %r' % obj['type'])
         loader(obj)
 
-    def _restore_transform(self, node, transform):
+    def _restore_transform(self, node, obj):
+        transform = obj.get('transform')
+        if not transform:
+            return
         m = hou.Matrix4(transform['matrix'])
         try:
             m *= node.parent().worldTransform()
@@ -154,19 +157,19 @@ class HoudiniLoader(BaseLoader):
     def _load_geometry(self, obj):
         print '# HoudiniLoader._load_geometry()', obj['_node_path']
         node = hou.node(obj['_node_dir']).createNode('geo', obj['_node_name'])
-        self._restore_transform(node, obj['transform'])
+        self._restore_transform(node, obj)
         geo_path = self.abspath(os.path.join(obj['path'], '..', obj['geometry']['path']))
         node.node('file1').parm('file').set(geo_path)
 
     def _load_group(self, obj):
         print '# HoudiniLoader._load_group()', obj['_node_path']
         node = hou.node(obj['_node_dir']).createNode('subnet', obj['_node_name'])
-        self._restore_transform(node, obj['transform'])
+        self._restore_transform(node, obj)
 
     def _load_instance(self, obj):
         print '# HoudiniLoader._load_instance()', obj['_node_path']
         node = hou.node(obj['_node_dir']).createNode('instance', obj['_node_name'])
-        self._restore_transform(node, obj['transform'])
+        self._restore_transform(node, obj)
         instance_path = os.path.join('..', obj['instance']['name'])
         node.parm('instancepath').set(instance_path)
 
