@@ -25,18 +25,28 @@ class HoudiniDumper(BaseDumper):
 
                     obj = {
                         'generator': 'Houdini %s' % hou.applicationVersionString(),
-                        'hou_node': node.path(),
-                        'hou_type': '%s/%s' % (node.type().category().name().lower(), node.type().name()),
+                        'houdini': {
+                            'path': node.path(),
+                            'context': node.type().category().name().lower(),
+                            'type': node.type().name(),
+                        },
                         'name': node.name(),
                         'path': os.path.relpath(node.path(), '/obj'),
+                        'type': {'subnet': 'group', 'geo': 'geometry'}.get(type_, type_),
                     }
+
                     if type_ == 'geo':
-                        obj['geometry_file'] = obj['path'] + '.obj'
+                        obj['geometry'] = {
+                            'path': obj['name'] + '.obj',
+                        }
+
                     if type_ == 'instance':
                         instance = node.parm('instancepath').evalAsString()
                         instance = os.path.abspath(os.path.join(node.path(), instance))
                         instance = os.path.relpath(instance, os.path.dirname(node.path()))
-                        obj['instance_name'] = instance
+                        obj['instance'] = {
+                            'name': instance,
+                        }
 
                     transform = node.worldTransform()
                     try:
@@ -45,19 +55,21 @@ class HoudiniDumper(BaseDumper):
                         pass
                     else:
                         transform *= p_transform.inverted()
-                    obj['transform'] = transform.asTuple()
-
-                    obj['transform_order'] = node.parm('xOrd').evalAsString()
-                    obj['transform_rotation_order'] = node.parm('rOrd').evalAsString()
-                    obj['transform_pivot'] = node.parmTuple('p').eval()
+                    
+                    obj['transform'] = {
+                        'matrix': transform.asTuple(),
+                        'transform_order': node.parm('xOrd').evalAsString(),
+                        'rotation_order': node.parm('rOrd').evalAsString(),
+                        'pivot': node.parmTuple('p').eval(),
+                    }
                     
                     yield obj
 
     def dump_geo(self, obj):
-        if obj.get('geometry_file'):
+        if obj.get('geometry'):
             node = hou.node('/obj/' + obj['path'])
             geo = node.displayNode().geometry()
-            geo.saveToFile(self.abspath(obj['geometry_file']))
+            geo.saveToFile(self.abspath(obj['path'] + '.obj'))
 
 
 def unique_node_name(base):
@@ -76,25 +88,47 @@ class HoudiniLoader(BaseLoader):
     def load_object(self, obj):
 
         parent = obj['_parent']
+
         if parent:
             node_path = os.path.join(parent['_node_path'], obj['name'])
         else:
             node_path = '/obj/' + obj['path']
 
-        node_path = unique_node_name(node_path)
-        node_dir = os.path.dirname(node_path)
-        obj['_node_path'] = node_path
+        obj['_node_path'] = unique_node_name(node_path)
+        obj['_node_name'] = os.path.basename(obj['_node_path'])
+        obj['_node_dir'] = os.path.dirname(obj['_node_path'])
 
-        if 'geometry_file' in obj:
-            self._load_geometry(obj)
-        else:
-            self._load_subnet(obj)
+        loader = getattr(self, '_load_%s' % obj['type'], None)
+        if not loader:
+            raise ValueError('unknown object type %r' % obj['type'])
+        loader(obj)
+
+    def _restore_transform(self, node, transform):
+        m = hou.Matrix4(transform['matrix'])
+        try:
+            m *= node.parent().worldTransform()
+        except AttributeError:
+            pass
+        node.setWorldTransform(m)
 
     def _load_geometry(self, obj):
         print '# HoudiniLoader._load_geometry()', obj['_node_path']
+        node = hou.node(obj['_node_dir']).createNode('geo', obj['_node_name'])
+        self._restore_transform(node, obj['transform'])
+        geo_path = self.abspath(os.path.join(obj['path'], '..', obj['geometry']['path']))
+        node.node('file1').parm('file').set(geo_path)
 
-    def _load_subnet(self, obj):
-        print '# HoudiniLoader._load_subnet()', obj['_node_path']
+    def _load_group(self, obj):
+        print '# HoudiniLoader._load_group()', obj['_node_path']
+        node = hou.node(obj['_node_dir']).createNode('subnet', obj['_node_name'])
+        self._restore_transform(node, obj['transform'])
+
+    def _load_instance(self, obj):
+        print '# HoudiniLoader._load_instance()', obj['_node_path']
+        node = hou.node(obj['_node_dir']).createNode('instance', obj['_node_name'])
+        self._restore_transform(node, obj['transform'])
+        instance_path = os.path.join('..', obj['instance']['name'])
+        node.parm('instancepath').set(instance_path)
 
 
 def main_dump():
