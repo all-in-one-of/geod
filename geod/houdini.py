@@ -7,6 +7,44 @@ from geod.core import BaseDumper, BaseLoader
 import hou
 
 
+def save_obj(geo, fh):
+
+    N_attr = geo.findVertexAttrib('N')
+    uv_attr = geo.findVertexAttrib('uv')
+
+    for point in geo.points():
+        fh.write('v %f %f %f\n' % tuple(point.position()))
+
+    N_count = 0
+    uv_count = 0
+
+    faces = []
+
+    for prim in geo.prims():
+
+        face_parts = []
+
+        for vert in prim.vertices():
+            
+            N = vert.floatListAttribValue(N_attr) if N_attr else None
+            if N:
+                N_count += 1
+                fh.write('vn %f %f %f\n' % tuple(N))
+
+            uv = vert.floatListAttribValue(uv_attr) if uv_attr else None
+            if uv:
+                uv_count += 1
+                fh.write('vt %f %f %f\n' % tuple(uv))
+
+            face_parts.append('%d/%s/%s' % (
+                vert.point().number() + 1,
+                uv_count if uv else '',
+                N_count if N else '',
+            ))
+
+        fh.write('f %s\n' % ' '.join(reversed(face_parts)))
+
+
 class HoudiniDumper(BaseDumper):
 
     def _walk_node(self, node):
@@ -65,11 +103,13 @@ class HoudiniDumper(BaseDumper):
                     
                     yield obj
 
+
     def dump_geo(self, obj):
         if obj.get('geometry'):
             node = hou.node('/obj/' + obj['path'])
             geo = node.displayNode().geometry()
-            geo.saveToFile(self.abspath(obj['path'] + '.obj'))
+            with open(self.abspath(obj['path'] + '.obj'), 'w') as fh:
+                save_obj(geo, fh)
 
 
 def unique_node_name(base):
