@@ -1,5 +1,6 @@
 import itertools
 import os
+import re
 
 from geod.core import BaseDumper, BaseLoader
 
@@ -52,11 +53,11 @@ class HoudiniDumper(BaseDumper):
                     
                     yield obj
 
-    def dump_geo(self, path, geometry_file=None, **kw):
-        if geometry_file:
-            node = hou.node('/obj/' + path)
+    def dump_geo(self, obj):
+        if obj.get('geometry_file'):
+            node = hou.node('/obj/' + obj['path'])
             geo = node.displayNode().geometry()
-            geo.saveToFile(self.abspath(geometry_file))
+            geo.saveToFile(self.abspath(obj['geometry_file']))
 
 
 def unique_node_name(base):
@@ -64,7 +65,7 @@ def unique_node_name(base):
     if not node:
         return base
     for i in itertools.count(1):
-        path = '%s_%d' % i
+        path = '%s_%d' % (base, i)
         node = hou.node(path)
         if not node:
             return path
@@ -72,13 +73,28 @@ def unique_node_name(base):
 
 class HoudiniLoader(BaseLoader):
 
-    def load_object(self, name, path, geometry_file=None, instance_name=None):
+    def load_object(self, obj):
 
-        node_path = '/obj/' + path
+        parent = obj['_parent']
+        if parent:
+            node_path = os.path.join(parent['_node_path'], obj['name'])
+        else:
+            node_path = '/obj/' + obj['path']
+
+        node_path = unique_node_name(node_path)
         node_dir = os.path.dirname(node_path)
+        obj['_node_path'] = node_path
 
-        if geometry_file:
-            node_path = unique_node_name()
+        if 'geometry_file' in obj:
+            self._load_geometry(obj)
+        else:
+            self._load_subnet(obj)
+
+    def _load_geometry(self, obj):
+        print '# HoudiniLoader._load_geometry()', obj['_node_path']
+
+    def _load_subnet(self, obj):
+        print '# HoudiniLoader._load_subnet()', obj['_node_path']
 
 
 def main_dump():
