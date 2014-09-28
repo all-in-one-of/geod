@@ -1,0 +1,18 @@
+
+- actual hierarchy via directories (to augment a "path" attribute)
+- *.json (or .jseo) or *.yaml files contain transforms
+√ `"generator": "Houdini 13.1.2"` from hou.applicationVersionString()
+√ `"created_at": "2014-09-24T17:35:50Z"`
+- `"node": {`
+	- `"geo_file": "rel_path_to_geo.obj"`
+	- `"instance": "rel_path_to_other"`
+	- `"type": Object/Geometry"`; pull class/type names from houdini
+		- node.type().description() and node.type().category().name()
+	- `"transform": [...]`
+	- `"pivot": [...]`
+
+
+- Maya: cmds.file('/Users/mikeboers/Desktop/test.obj', exportSelected=True, type="OBJexport", options='materials=0')
+
+- Blender: bpy.ops.export_scene.obj(filepath=obj_out, axis_forward='-Z', axis_up='Y')
+
