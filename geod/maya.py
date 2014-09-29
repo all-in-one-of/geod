@@ -105,7 +105,65 @@ class MayaDumper(BaseDumper):
             mc.xform(transform, worldSpace=True, matrix=xform)
 
 
+class MayaLoader(BaseLoader):
 
+    def load_object(self, obj):
+        loader = getattr(self, '_load_%s' % obj['type'], None)
+        if not loader:
+            raise ValueError('unknown object type %r' % obj['type'])
+        loader(obj)
+
+    def _restore_transform(self, node, obj):
+        transform = obj.get('transform')
+        if not transform:
+            return
+        m = hou.Matrix4(transform['matrix'])
+        try:
+            m *= node.parent().worldTransform()
+        except AttributeError:
+            pass
+        node.setWorldTransform(m)
+
+    def _load_geometry(self, obj):
+        print '# MayaLoader._load_geometry()', obj['path']
+
+        if 'transform' in obj:
+            self._load_group(obj)
+
+        old_objs = set(mc.ls(assemblies=True))
+        old_sets = set(mc.listSets(allSets=True))
+
+        geo_path = self.abspath(os.path.join(obj['path'], '..', obj['geometry']['path']))
+        # mo=0 signals to import into a single object.
+        x = mc.file(geo_path, i=True, type="OBJ", options='mo=0')
+
+        new_objs = list(set(mc.ls(assemblies=True)).difference(old_objs))
+
+        # Lots of extra sets get created that we don't want.
+        new_sets = list(set(mc.listSets(allSets=True)).difference(old_sets))
+        mc.delete(new_sets)
+
+        assert len(new_objs) == 1
+
+        parent = obj.get('_parent')
+        transform = obj.get('_transform') or parent['_transform']
+
+        if parent:
+            shape = mc.listRelatives(new_objs, fullPath=True, shapes=True)[0]
+            new_shape = mc.parent(shape, transform, shape=True, relative=True)
+            mc.rename(new_shape, obj['maya']['mesh'].split('|')[-1])
+            mc.delete(new_objs)
+
+    def _load_group(self, obj):
+        print '# MayaLoader._load_group()', obj['path']
+        parent = obj.get('_parent')
+        transform = mc.createNode('transform', name=obj['name'], parent=parent['_transform'] if parent else None)
+        mc.xform(transform, objectSpace=True, matrix=obj['transform']['matrix'])
+        obj['_transform'] = transform
+
+    def _load_instance(self, obj):
+        print '# MayaLoader._load_instance()', obj['path']
+        return
 
 def main_dump():
     dumper = MayaDumper('/Users/mikeboers/Desktop/test.geod')

@@ -159,7 +159,10 @@ class HoudiniLoader(BaseLoader):
         node = hou.node(obj['_node_dir']).createNode('geo', obj['_node_name'])
         self._restore_transform(node, obj)
         geo_path = self.abspath(os.path.join(obj['path'], '..', obj['geometry']['path']))
-        node.node('file1').parm('file').set(geo_path)
+        file_ = node.node('file1')
+        file_.parm('file').set(geo_path)
+        file_.setHardLocked(True)
+
 
     def _load_group(self, obj):
         print '# HoudiniLoader._load_group()', obj['_node_path']
