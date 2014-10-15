@@ -134,6 +134,8 @@ class HoudiniLoader(BaseLoader):
         else:
             node_path = '/obj/' + obj['path']
 
+        node_path = node_path.replace(' ', '_')
+        
         obj['_node_path'] = unique_node_name(node_path)
         obj['_node_name'] = os.path.basename(obj['_node_path'])
         obj['_node_dir'] = os.path.dirname(obj['_node_path'])

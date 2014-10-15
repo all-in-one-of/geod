@@ -151,7 +151,7 @@ class MayaLoader(BaseLoader):
         if parent:
             shape = mc.listRelatives(new_objs, fullPath=True, shapes=True)[0]
             new_shape = mc.parent(shape, transform, shape=True, relative=True)
-            mc.rename(new_shape, obj['maya']['mesh'].split('|')[-1])
+            mc.rename(new_shape, obj['name'])
             mc.delete(new_objs)
 
     def _load_group(self, obj):
