@@ -2,9 +2,16 @@
 - Maya: cmds.file('/Users/mikeboers/Desktop/test.geod/pCube1/pCubeShape1.obj', i=True)
 
 - Blender:
-    - bpy.ops.export_scene.obj(filepath=obj_out, use_selection=True, axis_forward='-Z', axis_up='Y')
+    - bpy.ops.export_scene.obj(filepath=obj_out, use_selection=True)
+        - without specifying axis, this exports blender's Z-up into Y-up
+        - (..., axis_forward='-Z', axis_up='Y') seems Blender-native
+        - exports into world space                   
     - bpy.context.selected_objects
     - obj.children -> other objects
     - obj.data -> a mesh
     - obj.matrix_world
 
+    - Matrices are column-major instead of row-major; need to M.transposed()
+      them to get them in the "right" order.
+
+    - obj.matrix_local is the right one

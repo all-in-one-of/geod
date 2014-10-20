@@ -11,19 +11,20 @@ import bpy
 
 class BlenderDumper(BaseDumper):
 
-    def _obj_base(self, path):
+    def _obj_base(self, node):
         return {
-            'generator': mc.about(product=True),
-            'maya': {mc.nodeType(path): path},
-            'name': re.split(r'[:|]', path)[-1],
-            'path': re.sub(r'[:|]', '/', path),
+            'generator': 'Blender ' + bpy.app.version_string,
+            'name': node.name,
+            'path': self._node_path(node),
             'type': 'group',
         }
 
     def _obj_transform(self, obj):
+        node = bpy.data.objects[obj['name']]
         obj.update({
             'transform': {
-                'matrix': mc.xform(obj['maya']['transform'], q=True, objectSpace=True, matrix=True),
+                # Blender is column oriented, and everything else is not.
+                'matrix': list(itertools.chain(*node.matrix_local.transposed())),
             }
         })
 
@@ -32,14 +33,17 @@ class BlenderDumper(BaseDumper):
             'type': 'geometry',
             'geometry': {
                 'path': obj['name'] + '.obj',
-            }
+            },
         })
 
     def _walk_objects(self, objs):
+        # For some reason that I can't explain, it actually makes a difference
+        # if we do children or parents first. If we do parents first, then the
+        # world matrices of the children get horribly distorted.
         for obj in objs:
-            yield obj
             for x in self._walk_objects(obj.children):
                 yield x
+            yield obj
 
     def _node_path(self, node):
         parts = []
@@ -52,26 +56,27 @@ class BlenderDumper(BaseDumper):
 
         for node in self._walk_objects(bpy.context.selected_objects):
 
-            yield {
-                'generator': 'Blender ' + bpy.app.version_string,
-                'name': node.name,
-                'path': self._node_path(node),
-                'type': 'group',
-                'transform': {
-                    'matrix': list(itertools.chain(*node.matrix_local.transposed())),
-                }
-            }
+            obj = self._obj_base(node)
 
-            if node.data:
-                yield {
-                    'generator': 'Blender ' + bpy.app.version_string,
-                    'name': node.name,
-                    'path': self._node_path(node) + '/' + node.name,
-                    'type': 'geometry',
-                    'geometry': {
-                        'path': node.name + '.obj',
-                    },
-                }
+            if node.data and node.children:
+                # We need to split this one up!
+
+                self._obj_transform(obj)
+                yield obj
+
+                obj = self._obj_base(node)
+                obj['path'] = obj['path'] + '/' + obj['name']
+                self._obj_geometry(obj)
+                yield obj
+
+            elif node.data:
+                self._obj_transform(obj)
+                self._obj_geometry(obj)
+                yield obj
+
+            else:
+                # Not quite sure how we would get here...
+                yield obj
 
     def dump_geo(self, obj):
 
@@ -80,19 +85,16 @@ class BlenderDumper(BaseDumper):
 
         node = bpy.data.objects[obj['name']]
 
-        transform = node.matrix_world.copy()
-        node.matrix_world = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]
-
         selected = bpy.context.selected_objects
         for x in selected:
             x.select = False
+        node.select = True
+
+        print('>>>', node.name)
+        transform = node.matrix_world.copy()
+        node.matrix_world.identity()
+
         try:
-            node.select = True
             bpy.ops.export_scene.obj(
                 filepath=self.abspath(obj['path'] + '.obj'),
                 use_selection=True,
@@ -104,6 +106,7 @@ class BlenderDumper(BaseDumper):
                 axis_up='Z',
             )
         finally:
+            print('<<<', node.name)
             node.matrix_world = transform
             node.select = False
             for x in selected:
