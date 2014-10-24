@@ -146,15 +146,40 @@ class HoudiniLoader(BaseLoader):
         loader(obj)
 
     def _restore_transform(self, node, obj):
+
         transform = obj.get('transform')
         if not transform:
             return
-        m = hou.Matrix4(transform['matrix'])
+
         try:
-            m *= node.parent().worldTransform()
-        except AttributeError:
-            pass
-        node.setWorldTransform(m)
+            parent = node.parent()
+        except:
+            parent = None
+
+        if False and 'parent_inverse' in transform:
+            
+            p_inv = hou.Matrix4(transform['parent_inverse'])
+            if parent:
+                pre_trans = parent.createNode('null', node.name() + '_parent_inverse')
+                node.setInput(0, pre_trans)
+                pre_trans.setParmTransform(p_inv)
+
+            basis = hou.Matrix4(transform['basis'])
+            node.setParmTransform(basis)
+
+        elif 'local' in transform:
+            m = hou.Matrix4(transform['local'])
+            node.setParmTransform(m)
+            parm = node.parmTransform()
+            pre = parm.inverted() * m
+            node.setPreTransform(pre)
+
+        elif 'world' in transform:
+            m = hou.Matrix4(transform['world'])
+            node.setWorldTransform(m)
+
+        else:
+            raise ValueError('no acceptable matrix in transform')
 
     def _load_geometry(self, obj):
         print '# HoudiniLoader._load_geometry()', obj['_node_path']
@@ -167,7 +192,7 @@ class HoudiniLoader(BaseLoader):
 
 
     def _load_group(self, obj):
-        print '# HoudiniLoader._load_group()', obj['_node_path']
+        print '# HoudiniLoader._load_group()   ', obj['_node_path']
         node = hou.node(obj['_node_dir']).createNode('subnet', obj['_node_name'])
         self._restore_transform(node, obj)
 

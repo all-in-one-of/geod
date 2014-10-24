@@ -13,7 +13,10 @@ class BlenderDumper(BaseDumper):
 
     def _obj_base(self, node):
         return {
-            'generator': 'Blender ' + bpy.app.version_string,
+            'generator': {
+                'application': 'Blender ' + bpy.app.version_string,
+                'module': __name__,
+            },
             'name': node.name,
             'path': self._node_path(node),
             'type': 'group',
@@ -24,7 +27,10 @@ class BlenderDumper(BaseDumper):
         obj.update({
             'transform': {
                 # Blender is column oriented, and everything else is not.
-                'matrix': list(itertools.chain(*node.matrix_local.transposed())),
+                'basis': list(itertools.chain(*node.matrix_basis.transposed())),
+                'parent_inverse': list(itertools.chain(*node.matrix_parent_inverse.transposed())),
+                'local': list(itertools.chain(*node.matrix_local.transposed())),
+                'world': list(itertools.chain(*node.matrix_world.transposed())),
             }
         })
 
@@ -56,6 +62,9 @@ class BlenderDumper(BaseDumper):
 
         for node in self._walk_objects(bpy.context.selected_objects):
 
+            if node.data and node.type != "MESH":
+                continue
+
             obj = self._obj_base(node)
 
             if node.data and node.children:
@@ -75,7 +84,8 @@ class BlenderDumper(BaseDumper):
                 yield obj
 
             else:
-                # Not quite sure how we would get here...
+                
+                self._obj_transform(obj)
                 yield obj
 
     def dump_geo(self, obj):
@@ -88,11 +98,14 @@ class BlenderDumper(BaseDumper):
         selected = bpy.context.selected_objects
         for x in selected:
             x.select = False
-        node.select = True
+
+        mesh = bpy.data.meshes.new('geod_export')
+        copy = bpy.data.objects.new('geod_export', mesh)
+        copy.data = node.data
+        bpy.context.scene.objects.link(copy)
+        copy.select = True
 
         print('>>>', node.name)
-        transform = node.matrix_world.copy()
-        node.matrix_world.identity()
 
         try:
             bpy.ops.export_scene.obj(
@@ -107,8 +120,10 @@ class BlenderDumper(BaseDumper):
             )
         finally:
             print('<<<', node.name)
-            node.matrix_world = transform
-            node.select = False
+
+            bpy.ops.object.delete()
+            bpy.data.meshes.remove(mesh)
+
             for x in selected:
                 x.select = True
 

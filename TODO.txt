@@ -15,3 +15,11 @@
       them to get them in the "right" order.
 
     - obj.matrix_local is the right one
+
+    - obj.local is in the local directoins, but world units
+    - obj.rotate is in local directions
+    - obj.scale is in local directions, but world units
+
+    - basis appears to be the local/rotate/scale, before the effects of parenting
+
+    http://wiki.blender.org/index.php/User:Pepribal/Ref/Appendices/ParentInverse !!
