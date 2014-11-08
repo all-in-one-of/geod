@@ -9,8 +9,11 @@ import hou
 
 def save_obj(geo, fh):
 
-    N_attr = geo.findVertexAttrib('N')
-    uv_attr = geo.findVertexAttrib('uv')
+    N_vattr = geo.findVertexAttrib('N')
+    N_pattr = geo.findPointAttrib('N')
+
+    uv_vattr = geo.findVertexAttrib('uv')
+    uv_pattr = geo.findPointAttrib('uv')
 
     for point in geo.points():
         fh.write('v %f %f %f\n' % tuple(point.position()))
@@ -26,12 +29,24 @@ def save_obj(geo, fh):
 
         for vert in prim.vertices():
             
-            N = vert.floatListAttribValue(N_attr) if N_attr else None
+            if N_vattr:
+                N = vert.floatListAttribValue(N_vattr)
+            elif N_pattr:
+                N = vert.point().floatListAttribValue(N_pattr)
+            else:
+                N = None
+
             if N:
                 N_count += 1
                 fh.write('vn %f %f %f\n' % tuple(N))
 
-            uv = vert.floatListAttribValue(uv_attr) if uv_attr else None
+            if uv_vattr:
+                uv = vert.floatListAttribValue(uv_vattr)
+            elif uv_pattr:
+                uv = vert.point().floatListAttribValue(uv_pattr)
+            else:
+                uv = None
+
             if uv:
                 uv_count += 1
                 fh.write('vt %f %f %f\n' % tuple(uv))
@@ -86,16 +101,17 @@ class HoudiniDumper(BaseDumper):
                             'name': instance,
                         }
 
-                    transform = node.worldTransform()
+                    world = node.worldTransform()
                     try:
                         p_transform = node.parent().worldTransform()
                     except AttributeError:
-                        pass
+                        local = world
                     else:
-                        transform *= p_transform.inverted()
+                        local = world * p_transform.inverted()
                     
                     obj['transform'] = {
-                        'matrix': transform.asTuple(),
+                        'world': world.asTuple(),
+                        'local': local.asTuple(),
                         'transform_order': node.parm('xOrd').evalAsString(),
                         'rotation_order': node.parm('rOrd').evalAsString(),
                         'pivot': node.parmTuple('p').eval(),
