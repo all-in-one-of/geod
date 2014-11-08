@@ -117,7 +117,7 @@ class MayaLoader(BaseLoader):
         transform = obj.get('transform')
         if not transform:
             return
-        m = hou.Matrix4(transform['matrix'])
+        m = hou.Matrix4(transform['local'])
         try:
             m *= node.parent().worldTransform()
         except AttributeError:
@@ -143,6 +143,9 @@ class MayaLoader(BaseLoader):
         new_sets = list(set(mc.listSets(allSets=True)).difference(old_sets))
         mc.delete(new_sets)
 
+        if not new_objs:
+            print 'No geometry in', geo_path
+            return
         assert len(new_objs) == 1
 
         parent = obj.get('_parent')
@@ -158,7 +161,7 @@ class MayaLoader(BaseLoader):
         print '# MayaLoader._load_group()', obj['path']
         parent = obj.get('_parent')
         transform = mc.createNode('transform', name=obj['name'], parent=parent['_transform'] if parent else None)
-        mc.xform(transform, objectSpace=True, matrix=obj['transform']['matrix'])
+        mc.xform(transform, objectSpace=True, matrix=obj['transform']['local'])
         obj['_transform'] = transform
 
     def _load_instance(self, obj):
