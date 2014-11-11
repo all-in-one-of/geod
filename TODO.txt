@@ -1,25 +1,25 @@
 
-- Maya: cmds.file('/Users/mikeboers/Desktop/test.geod/pCube1/pCubeShape1.obj', i=True)
+- Decide if the format will allow for geometry to have children.
+    - Houdini does not allow this (via subnets), but there are still
+      node IO relationships which do the same thing.
 
-- Blender:
-    - bpy.ops.export_scene.obj(filepath=obj_out, use_selection=True)
-        - without specifying axis, this exports blender's Z-up into Y-up
-        - (..., axis_forward='-Z', axis_up='Y') seems Blender-native
-        - exports into world space                   
-    - bpy.context.selected_objects
-    - obj.children -> other objects
-    - obj.data -> a mesh
-    - obj.matrix_world
+- Abstract the logic which determines if a node should be broken up into two,
+  and then putting the transform/geo onto different ones.
 
-    - Matrices are column-major instead of row-major; need to M.transposed()
-      them to get them in the "right" order.
+  √ First step is to create core "node" objects, which hold onto the app-specific
+    data. These retain the original heirarchy as well.
+  x Next is to determine if they should be broken up at all.
+  - Then decide the final paths on disk for saving.
+  - Next, couldalculate transforms, and/or export geometry.
 
-    - obj.matrix_local is the right one
+  - If we shift our perception of this to be a scene graph in memory that is
+    then interpreted, instead of functionally loading/saving to disk as we
+    traverse directories, everything may get a ton easier to deal with.
 
-    - obj.local is in the local directoins, but world units
-    - obj.rotate is in local directions
-    - obj.scale is in local directions, but world units
+- Houdini importer could/should colours nodes with shears stuffed into
+  pre-transform.
 
-    - basis appears to be the local/rotate/scale, before the effects of parenting
+- Houdini exporter's "local" transform does not include shears.
 
-    http://wiki.blender.org/index.php/User:Pepribal/Ref/Appendices/ParentInverse !!
+- How would we represent shaders, or atleast shader assignments? How could this
+  data survive the round-trip from Houdini to/from Maya?
