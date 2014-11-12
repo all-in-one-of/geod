@@ -44,9 +44,16 @@ class Scene(object):
         self.root_objects = [self.guid_to_object[guid] for guid in sorted(root_guids)]
 
     def walk(self):
+        count = 0
         for root in self.root_objects:
             for x in self._walk(root, ''):
+                
+                if count >= len(self.guid_to_object):
+                    print('The graph has cycles!')
+                    return
+
                 yield x
+                count += 1
 
     def _walk(self, obj, path):
         path = os.path.join(path, os.path.normpath(obj.name).replace('/', ''))
@@ -56,9 +63,15 @@ class Scene(object):
                 yield x
 
     def dump(self):
+        for _ in self.iter_dump():
+            pass
+
+    def iter_dump(self):
 
         # First pass: setup all the basic information.
-        for path, obj in self.walk():
+        for i, (path, obj) in enumerate(self.walk()):
+
+            yield i, len(self.guid_to_object), path, obj
 
             path = self._abspath(path)
             makedirs(os.path.dirname(path))
@@ -76,6 +89,10 @@ class Scene(object):
                 json.dump(meta, fh, indent=4, sort_keys=True)
 
     def load(self):
+        for _ in self.iter_load():
+            pass
+
+    def iter_load(self):
 
         # Load all of the objects, and establish relationships.
         path_to_meta = {}
@@ -149,9 +166,7 @@ class Scene(object):
         # Restore transforms and load geometry.
         for i, (path, obj) in enumerate(self.walk()):
 
-            if i >= len(self.guid_to_object):
-                print('The graph has cycles!')
-                break
+            yield i, len(self.guid_to_object), path, obj
 
             transforms = obj._meta.get('transform')
             if transforms:

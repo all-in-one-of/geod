@@ -23,7 +23,7 @@ class MayaObject(BaseObject):
     def __init__(self, transform):
         super(MayaObject, self).__init__(re.split(r'[:|]', transform)[-1])
         self.transform = transform
-        shapes = mc.listRelatives([self.transform], fullPath=True, shapes=True) or []
+        shapes = mc.listRelatives([self.transform], fullPath=True, shapes=True, noIntermediate=True) or []
         self.shape = shapes[0] if shapes else None
         if len(shapes) > 1:
             print 'WARNING: more than one shape for', transform
