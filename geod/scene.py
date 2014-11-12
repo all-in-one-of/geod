@@ -1,20 +1,29 @@
+from __future__ import print_function
+
 import copy
 import json
 import os
 import pprint
+import sys
 
 from .utils import makedirs
 from .object import BaseObject
 
+if sys.version_info[0] > 2:
+    dict_itervalues = lambda x: x.values()
+    dict_values = lambda x: list(x.values())
+else:
+    dict_itervalues = lambda x: x.itervalues()
+    dict_values = lambda x: x.values()
+
 
 class Scene(object):
 
-    object_class = BaseObject
-
-    def __init__(self, path):
+    def __init__(self, path, object_class=BaseObject):
         self.path = os.path.abspath(path)
         self.guid_to_object = {}
         self.root_objects = None
+        self.object_class = object_class
 
     def _abspath(self, path):
         return os.path.join(self.path, os.path.normpath(path).lstrip('/'))
@@ -23,10 +32,10 @@ class Scene(object):
         return self.guid_to_object.setdefault(obj.guid, obj)
 
     def finalize_graph(self):
-        for obj in self.guid_to_object.values():
+        for obj in dict_values(self.guid_to_object):
             obj._init_graph(self)
         root_guids = set(self.guid_to_object)
-        for obj in self.guid_to_object.itervalues():
+        for obj in dict_itervalues(self.guid_to_object):
             for child in obj.children:
                 try:
                     root_guids.remove(child.guid)
@@ -91,13 +100,14 @@ class Scene(object):
 
         # Break up combo subnet/geometry/instance nodes (as geometryis not
         # allowed to have children (by Houdini, and us)).
-        for meta in path_to_meta.values():
+        for meta in dict_values(path_to_meta):
 
             if meta.get('_children') and meta.get('geometry'):
 
                 geo = copy.deepcopy(meta)
                 geo.pop('transform', None)
 
+                geo['name'] += 'Geo'
                 geo['_path'] = os.path.join(geo['_path'], geo['name'])
                 path_to_meta[geo['_path']] = geo
                 geo['_children'] = []
@@ -109,7 +119,7 @@ class Scene(object):
 
         # Get the root nodes.
         root_paths = set(path_to_meta)
-        for meta in path_to_meta.itervalues():
+        for meta in dict_itervalues(path_to_meta):
             for child in meta['_children']:
                 try:
                     root_paths.remove(child['_path'])
@@ -131,21 +141,23 @@ class Scene(object):
             obj._meta = meta
             self.add_object(obj)
 
-            print obj
-
             to_visit.extend(meta['_children'])
 
         # Re-establish the heirarchy.
         self.finalize_graph()
 
         # Restore transforms and load geometry.
-        for _, obj in self.walk():
+        for i, (path, obj) in enumerate(self.walk()):
+
+            if i >= len(self.guid_to_object):
+                print('The graph has cycles!')
+                break
 
             transforms = obj._meta.get('transform')
             if transforms:
-                print 'Setting transform on', obj.guid
+                print('Setting transform on', obj.guid)
                 obj.set_transforms(transforms)
-            
+
             geometry = obj._meta.get('geometry')
             if geometry:
                 path = geometry.get('path')

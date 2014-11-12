@@ -1,11 +1,11 @@
 import maya.cmds as mc
 
-from .scene import MayaScene as Scene
+from ..scene import Scene
 from .object import MayaObject as Object
 
 
 def dump():
-    scene = Scene('/Users/mikeboers/Desktop/test.geod')
+    scene = Scene('/Users/mikeboers/Desktop/test.geod', object_class=Object)
 
     selection = mc.ls(selection=True, long=True) or []
     transforms = mc.listRelatives(selection, allDescendents=True, fullPath=True, type='transform') or []
@@ -18,5 +18,5 @@ def dump():
 
 
 def load():    
-    scene = Scene('/Users/mikeboers/Desktop/test.geod')
+    scene = Scene('/Users/mikeboers/Desktop/test.geod', object_class=Object)
     scene.load()

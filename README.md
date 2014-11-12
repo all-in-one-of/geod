@@ -3,15 +3,18 @@ Blender
 -------
 
 import sys
-from imp import reload
 
-path = '/Volumes/heap/sitg/dev/geod'
-if path not in sys.path:
-    sys.path.append(path)
+root = '/Volumes/heap/sitg/dev'
+for pkg in ('metatools', 'geod'):
+    path = root + '/' + pkg
+    if path not in sys.path:
+        sys.path.append(path)
 
 for obj in D.objects:
     obj.select = not (obj.data and obj.type != 'MESH')
 
-import geod.blender
-reload(geod.core) and reload(geod.blender) and geod.blender.main_dump()
+from metatools.imports import autoreload
+import geod.blender.commands
+
+autoreload(geod.blender.commands); geod.blender.commands.dump()
 

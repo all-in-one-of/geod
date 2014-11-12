@@ -14,9 +14,11 @@ class MayaObject(BaseObject):
     def from_meta(cls, meta, parent):
         # Need to do the ls to get the long name, since createNode only gives
         # us the short one.
-        mc.createNode('transform', name=meta['name'], parent=parent.transform if parent else None)
-        transform = mc.ls(selection=True, long=True)[0]
-        return cls(transform)
+        name = re.sub(r'[^\w/]+', '_', meta['name']).strip('_')
+        mc.createNode('transform', name=name, parent=parent.transform if parent else None)
+        selection = mc.ls(selection=True, long=True)
+        assert len(selection) == 1
+        return cls(selection[0])
 
     def __init__(self, transform):
         super(MayaObject, self).__init__(re.split(r'[:|]', transform)[-1])
@@ -31,7 +33,7 @@ class MayaObject(BaseObject):
         return self.transform
 
     def _iter_child_args(self):
-        transforms = mc.listRelatives([self.transform], allDescendents=True, fullPath=True, type='transform') or []
+        transforms = mc.listRelatives([self.transform], fullPath=True, type='transform') or []
         for transform in transforms:
             yield (transform, )
 
@@ -103,13 +105,13 @@ class MayaObject(BaseObject):
         mc.delete(new_sets)
 
         if not new_objs:
-            print 'No geometry in', geo_path
+            print 'No geometry in', spec['path']
             return
         assert len(new_objs) == 1
 
         shape = mc.listRelatives(new_objs, fullPath=True, shapes=True)[0]
-        self.shape = mc.parent(shape, self.transform, shape=True, relative=True)
-        mc.rename(self.shape, self.name)
+        shape = mc.parent(shape, self.transform, shape=True, relative=True)
+        self.shape = mc.rename(self.shape, self.name + 'Shape')
         mc.delete(new_objs)
 
 
