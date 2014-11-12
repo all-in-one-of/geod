@@ -1,6 +1,10 @@
 
 class BaseObject(object):
 
+    @classmethod
+    def from_meta(cls, meta, parent):
+        return cls(meta['name'])
+
     def __init__(self, name):
         self.name = name
         self.children = None

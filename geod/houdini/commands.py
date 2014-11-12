@@ -2,7 +2,7 @@ import hou
 
 #from .dumper import HoudiniDumper
 #from .loader import HoudiniLoader
-from ..scene import Scene
+from .scene import HoudiniScene as Scene
 from .object import HoudiniObject as Object
 
 
@@ -16,5 +16,4 @@ def dump():
 
 def load():    
     scene = Scene('/Users/mikeboers/Desktop/test.geod')
-    scene.load_graph()
-    scene.create_objects()
+    scene.load()

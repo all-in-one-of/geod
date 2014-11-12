@@ -1,13 +1,42 @@
+import itertools
+
 import hou
 
 from ..object import BaseObject
 from .obj import dump as dump_obj
 
 
+def unique_name(base):
+    node = hou.node(base)
+    if not node:
+        return base
+    for i in itertools.count(1):
+        path = '%s_%d' % (base, i)
+        node = hou.node(path)
+        if not node:
+            return path
+
+
 class HoudiniObject(BaseObject):
     
+    @classmethod
+    def from_meta(cls, meta, parent):
+
+        path = unique_name((parent.node.path() if parent else '/obj') + '/' + meta['name'])
+        dir_, name = path.rsplit('/', 1)
+
+        parent_node = parent.node if parent else hou.node('/obj')
+        assert parent_node.path() == dir_
+
+        if meta.get('geometry'):
+            node = parent_node.createNode('geo', name)
+        else:
+            node = parent_node.createNode('subnet', name)
+
+        return cls(node)
+
     def __init__(self, node):
-        super(HoudiniObject, self).__init__(node.name())
+        super(HoudiniObject, self).__init__(node.name() if node else None)
         self.node = node
 
     @property
@@ -61,6 +90,19 @@ class HoudiniObject(BaseObject):
             'local': local.asTuple(),
         }
 
+    def set_transforms(self, transforms):
+        if 'local' in transforms:
+            m = hou.Matrix4(transforms['local'])
+            self.node.setParmTransform(m)
+            parm = self.node.parmTransform()
+            pre = parm.inverted() * m
+            self.node.setPreTransform(pre)
+        elif 'world' in transforms:
+            m = hou.Matrix4(transforms['world'])
+            self.node.setWorldTransform(m)
+        else:
+            raise ValueError('no acceptable matrix in transforms')
+
     def export_geo(self, path):
         if self.node.type().name() == 'geo':
             geo = self.node.displayNode().geometry()
@@ -68,4 +110,10 @@ class HoudiniObject(BaseObject):
             with open(path, 'w') as fh:
                 dump_obj(geo, fh)
             return {'path': path}
+
+    def import_geo(self, spec):
+        file_ = self.node.node('file1')
+        file_.parm('file').set(spec['path'])
+        file_.setHardLocked(True)
+
 
