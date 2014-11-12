@@ -26,7 +26,9 @@ class MayaObject(BaseObject):
         shapes = mc.listRelatives([self.transform], fullPath=True, shapes=True) or []
         self.shape = shapes[0] if shapes else None
         if len(shapes) > 1:
-            print 'WARNING: more than one shape for', t
+            print 'WARNING: more than one shape for', transform
+            for s in shapes:
+                print '\t' + s
 
     @property
     def guid(self):

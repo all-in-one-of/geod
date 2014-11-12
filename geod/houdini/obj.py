@@ -46,8 +46,8 @@ def dump(geo, fh):
             # We can't emit "%d//", or we will crash Maya. Silly.
             vert_parts = [
                 str(vert.point().number() + 1),
-                uv_count if uv else '',
-                N_count if N else '',
+                str(uv_count if uv else ''),
+                str(N_count if N else ''),
             ]
             while not vert_parts[-1]:
                 vert_parts.pop(-1)
