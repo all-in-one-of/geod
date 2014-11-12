@@ -43,10 +43,15 @@ def dump(geo, fh):
                 uv_count += 1
                 fh.write('vt %f %f %f\n' % tuple(uv))
 
-            face_parts.append('%d/%s/%s' % (
-                vert.point().number() + 1,
+            # We can't emit "%d//", or we will crash Maya. Silly.
+            vert_parts = [
+                str(vert.point().number() + 1),
                 uv_count if uv else '',
                 N_count if N else '',
-            ))
+            ]
+            while not vert_parts[-1]:
+                vert_parts.pop(-1)
+            face_parts.append('/'.join(vert_parts))
+
 
         fh.write('f %s\n' % ' '.join(reversed(face_parts)))

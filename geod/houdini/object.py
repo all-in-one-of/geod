@@ -1,4 +1,5 @@
 import itertools
+import re
 
 import hou
 
@@ -7,6 +8,7 @@ from .obj import dump as dump_obj
 
 
 def unique_name(base):
+    base = re.sub(r'[^\w/]+', '_', base).strip('_')
     node = hou.node(base)
     if not node:
         return base
@@ -26,7 +28,8 @@ class HoudiniObject(BaseObject):
         dir_, name = path.rsplit('/', 1)
 
         parent_node = parent.node if parent else hou.node('/obj')
-        assert parent_node.path() == dir_
+        if parent_node.path() != dir_:
+            print 'WARNING: %s != %s' % (parent_node.path(), dir_)
 
         if meta.get('geometry'):
             node = parent_node.createNode('geo', name)

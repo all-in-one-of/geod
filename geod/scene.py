@@ -126,9 +126,12 @@ class Scene(object):
             visited.add(meta['_path'])
 
             obj = self.object_class.from_meta(meta, (meta.get('_parent') or {}).get('_object'))
+
             meta['_object'] = obj
             obj._meta = meta
             self.add_object(obj)
+
+            print obj
 
             to_visit.extend(meta['_children'])
 
@@ -140,19 +143,15 @@ class Scene(object):
 
             transforms = obj._meta.get('transform')
             if transforms:
+                print 'Setting transform on', obj.guid
                 obj.set_transforms(transforms)
-
+            
             geometry = obj._meta.get('geometry')
             if geometry:
                 path = geometry.get('path')
                 if path:
                     geometry['path'] = os.path.join(os.path.dirname(obj._meta['_filepath']), path)
                 obj.import_geo(geometry)
-
-
-
-
-
 
 
     def _deep_encode(self, x):
