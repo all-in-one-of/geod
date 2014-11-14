@@ -1,20 +1,8 @@
+Geo.d
+=====
 
-Blender
--------
+A simple 3D geometry interchange format for moving to and from Houdini, Maya, and Blender.
 
-import sys
+This format and tool was concieved as a work aroung for shears not being properly transferred from Blender to Houdini via either Collada or FBX files. The on-disk representation of geometry is essentially a heirarchy of GEO files, and sidecar JSON files with metadata (including transformations).
 
-root = '/Volumes/heap/sitg/dev'
-for pkg in ('metatools', 'geod'):
-    path = root + '/' + pkg
-    if path not in sys.path:
-        sys.path.append(path)
-
-for obj in D.objects:
-    obj.select = not (obj.data and obj.type != 'MESH')
-
-from metatools.imports import autoreload
-import geod.blender.commands
-
-autoreload(geod.blender.commands); geod.blender.commands.dump()
-
+This is active development, and very likely to change.
