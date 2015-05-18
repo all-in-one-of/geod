@@ -5,7 +5,7 @@ setup(
     name='geod',
     version='0.1.0',
     description='GEO directory IO for Maya/Houdini.',
-    url='http://github.com/mikeboers/geod',
+    url='http://github.com/sitg/geod',
     
     packages=find_packages(exclude=['build*', 'tests*']),
     
